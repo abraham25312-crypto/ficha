@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ficha de emergencia - El Casco Seguro</title>
+<style>
+  :root { --rojo:#C62828; --azul:#0D2B4E; --fondo:#F3F6FA; --texto:#1b1b1b; --tarjeta:#fff; }
+  @media (prefers-color-scheme: dark) {
+    :root { --fondo:#10151c; --texto:#f1f1f1; --tarjeta:#1b232e; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, Arial, sans-serif; background:var(--fondo); color:var(--texto); }
+  header { background:var(--rojo); color:#fff; padding:16px; text-align:center; font-weight:800; letter-spacing:1px; }
+  main { max-width:560px; margin:0 auto; padding:14px; }
+  .card { background:var(--tarjeta); border-radius:14px; padding:14px; margin-bottom:12px; box-shadow:0 1px 4px #0003; }
+  .label { font-size:.8rem; text-transform:uppercase; opacity:.7; font-weight:700; }
+  .valor { font-size:1.15rem; margin-top:2px; white-space:pre-wrap; }
+  .nombre { font-size:1.6rem; font-weight:800; }
+  .sangre { font-size:2.6rem; font-weight:900; color:var(--rojo); }
+  .alerta .valor { color:var(--rojo); font-weight:700; }
+  a.btn { display:block; text-align:center; text-decoration:none; padding:14px; border-radius:12px;
+          font-weight:800; font-size:1.05rem; margin-top:8px; background:var(--azul); color:#fff; }
+  a.btn.rojo { background:var(--rojo); }
+  .msg { text-align:center; padding:30px 10px; font-size:1.1rem; }
+</style>
+</head>
+<body>
+<header>FICHA DE EMERGENCIA</header>
+<main id="app"><div class="msg">Cargando...</div></main>
+<script>
+// CAMBIA ESTA LINEA por tu DB_URL de Firebase (sin diagonal al final)
+const DB = "https://casco-seguro-default-rtdb.firebaseio.com";
+
+const app = document.getElementById("app");
+const id = new URLSearchParams(location.search).get("id");
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;   // textContent evita inyectar HTML
+  return e;
+}
+function campo(label, valor, cls) {
+  if (!valor) return;
+  const c = el("div", "card " + (cls || ""));
+  c.append(el("div", "label", label), el("div", "valor", valor));
+  app.append(c);
+}
+function contacto(nombre, parentesco, tel) {
+  if (!tel) return;
+  const c = el("div", "card");
+  c.append(el("div", "label", "Contacto de emergencia"));
+  c.append(el("div", "valor", nombre + (parentesco ? " (" + parentesco + ")" : "")));
+  const a = el("a", "btn", "Llamar: " + tel);
+  a.href = "tel:" + tel.replace(/[^\d+]/g, "");
+  c.append(a);
+  app.append(c);
+}
+function mensaje(t) { app.replaceChildren(el("div", "msg", t)); }
+
+async function init() {
+  if (!id) return mensaje("Falta el identificador de la ficha.");
+  try {
+    const r = await fetch(DB + "/emergencias/" + encodeURIComponent(id) + ".json");
+    if (!r.ok) return mensaje("No se pudo consultar la ficha.");
+    const d = await r.json();
+    if (!d) return mensaje("Ficha no disponible.");
+    app.replaceChildren();
+    const top = el("div", "card");
+    top.append(el("div", "nombre", d.nombre || "Paciente"));
+    if (d.edad) top.append(el("div", "valor", d.edad + " años"));
+    top.append(el("div", "label", "Tipo de sangre"), el("div", "sangre", d.sangre || "?"));
+    app.append(top);
+    campo("Alergias", d.alergias, "alerta");
+    campo("Padecimientos", d.condiciones);
+    campo("Medicamentos", d.medicamentos);
+    contacto(d.contacto1Nombre, d.contacto1Parentesco, d.contacto1Tel);
+    contacto(d.contacto2Nombre, "", d.contacto2Tel);
+    const s = el("a", "btn rojo", "Llamar al 911");
+    s.href = "tel:911";
+    app.append(s);
+  } catch (e) {
+    mensaje("Sin conexion. Intenta de nuevo.");
+  }
+}
+init();
+</script>
+</body>
+</html>
